@@ -15,7 +15,7 @@ Framebuffer Animations is an open-source project designed to play GIF animations
 * Customizable for different display configurations,
 * Written in Rust for performance and reliability.
 
-## CrossCompilation
+## Cross-Compilation
 
 Cross-compiling Framebuffer Animations for your target embedded system is straightforward. Here's an example of cross-compilation for The NXP i.MX28 processor with support for the ARMv5TE instruction set.
 
