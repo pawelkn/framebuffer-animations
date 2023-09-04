@@ -110,7 +110,7 @@ The Framebuffer Animations accepts the following command line arguments:
 
 - `gif_file`: The path to the GIF file that you want to play.
 
-### Troubleshooting
+## Troubleshooting
 
 If you encounter any issues while using Framebuffer Animations, first check, if the framebuffer is in sleep mode.
 To leave Framebuffer sleep power mode:
@@ -118,10 +118,6 @@ To leave Framebuffer sleep power mode:
 ```bash
 echo 0 > /sys/class/graphics/fb0/blank
 ```
-
-### Contributing
-
-Contributions to Framebuffer Animations are welcome! Whether you want to report a bug, suggest a feature, or submit a pull request, please refer to our Contribution Guidelines for more information.
 
 ## Image Sources
 
