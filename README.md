@@ -45,10 +45,6 @@ mkdir .cargo
 ```ini
 [target.armv5te-unknown-linux-gnueabi]
 linker = "/home/pawel/buildroot/output/host/usr/bin/arm-buildroot-linux-gnueabi-gcc"
-rustflags = [
-  "-C", "link-arg=-Wl,--dynamic-linker=/lib/ld-linux.so.3",
-  "-C", "link-arg=--sysroot=/home/pawel/buildroot/output/host/usr/arm-buildroot-linux-gnueabi/sysroot"
-]
 ```
 
 6. Build the project:
