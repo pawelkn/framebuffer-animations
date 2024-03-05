@@ -1,28 +1,36 @@
-use clap::Parser;
 use framebuffer::{Framebuffer, FramebufferError, KdMode};
+use gif::{ColorOutput, Decoder, DecodingError};
+use pico_args::Arguments;
 use std::error::Error;
 use std::fs::File;
+use std::process;
 use std::thread;
 use std::time::{Duration, Instant};
-use gif::{Decoder, DecodingError, ColorOutput};
 
-#[derive(clap::Parser, Debug, Default)]
-#[command(about, version, long_about = None)]
-/// Framebuffer GIF animation player
+const HELP: &str = "\
+Framebuffer GIF animation player
+
+USAGE:
+  fba [OPTIONS] --number NUMBER [INPUT]
+
+FLAGS:
+  -h, --help                Prints help information
+
+OPTIONS:
+  -d, --device DEVICE       Framebuffer device file [default: /dev/fb0]
+  -i, --interval NUMBER     Interval step for displaying GIF frames (milliseconds) [default: 5]
+  -o, --once                Play the file just one time
+
+ARGS:
+  <FILE>                    GIF file to be played
+";
+
+/// Command line arguments
+#[derive(Debug)]
 struct Args {
-    /// Framebuffer device file
-    #[arg(short, long, default_value_t = String::from("/dev/fb0"))]
     device: String,
-
-    /// Interval step for displaying GIF frames (milliseconds)
-    #[arg(short, long, default_value_t = 5)]
     interval: u64,
-
-    /// Play the file just one time
-    #[arg(short, long, default_value_t = false)]
     once: bool,
-
-    /// GIF file to be played
     gif_file: String,
 }
 
@@ -30,7 +38,38 @@ struct Args {
 struct FramebufferInfo {
     width: usize,
     height: usize,
-    channels: usize
+    channels: usize,
+}
+
+/// Parses command line arguments
+fn parse_args() -> Result<Args, pico_args::Error> {
+    let mut pargs = Arguments::from_env();
+
+    // Help has a higher priority and should be handled separately.
+    if pargs.contains(["-h", "--help"]) {
+        print!("{}", HELP);
+        process::exit(0);
+    }
+
+    let args = Args {
+        device: pargs.opt_value_from_str(["-d", "--device"])?.unwrap_or("/dev/fb0".to_string()),
+        interval: pargs.opt_value_from_fn(["-i", "--interval"], parse_interval)?.unwrap_or(5),
+        once: pargs.contains(["-o", "--once"]),
+        gif_file: pargs.free_from_str()?,
+    };
+
+    // It's up to the caller what to do with the remaining arguments.
+    let remaining = pargs.finish();
+    if !remaining.is_empty() {
+        eprintln!("Warning: unused arguments left: {:?}.", remaining);
+    }
+
+    Ok(args)
+}
+
+/// Parses the interval argument.
+fn parse_interval(s: &str) -> Result<u64, &'static str> {
+    s.parse().map_err(|_| "not a number")
 }
 
 /// Retrieves information about the framebuffer.
@@ -109,7 +148,7 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Parse command line arguments
-    let args = Args::parse();
+    let args = parse_args()?;
 
     // Set keyboard display mode to graphics
     set_keyboard_display_mode(KdMode::Graphics)?;
@@ -154,4 +193,3 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-

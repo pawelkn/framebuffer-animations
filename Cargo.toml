@@ -1,7 +1,12 @@
 [package]
 name = "fba"
-version = "0.1.0"
+version = "0.2.0"
+authors = ["Paweł Knioła <pawel.kn@gmail.com>"]
 edition = "2021"
+license = "MIT"
+description = "Plays GIF animations on a raw framebuffer device"
+repository = "https://github.com/pawelkn/framebuffer-animations"
+readme = "README.md"
 
 [profile.release]
 strip = true  # Automatically strip symbols from the binary
@@ -9,6 +14,6 @@ lto = true  # Enable link time optimization
 codegen-units = 1  # Reduce parallel code generation units
 
 [dependencies]
-clap = { version = "4.4.1", features = ["derive"] }
-framebuffer = "0.3.1"
-gif = "0.12.0"
+pico-args = "^0.5"
+framebuffer = "^0.3"
+gif = "^0.12"
