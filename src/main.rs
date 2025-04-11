@@ -20,6 +20,7 @@ OPTIONS:
   -d, --device DEVICE       Framebuffer device file [default: /dev/fb0]
   -i, --interval NUMBER     Interval step for displaying GIF frames (milliseconds) [default: 5]
   -o, --once                Play the file just one time
+  -c, --center              Center the GIF
 
 ARGS:
   <FILE>                    GIF file to be played
@@ -31,6 +32,7 @@ struct Args {
     device: String,
     interval: u64,
     once: bool,
+    center: bool,
     gif_file: String,
 }
 
@@ -39,6 +41,11 @@ struct FramebufferInfo {
     width: usize,
     height: usize,
     channels: usize,
+}
+
+struct Offset {
+    x: usize,
+    y: usize,
 }
 
 /// Parses command line arguments
@@ -55,6 +62,7 @@ fn parse_args() -> Result<Args, pico_args::Error> {
         device: pargs.opt_value_from_str(["-d", "--device"])?.unwrap_or("/dev/fb0".to_string()),
         interval: pargs.opt_value_from_fn(["-i", "--interval"], parse_interval)?.unwrap_or(5),
         once: pargs.contains(["-o", "--once"]),
+        center: pargs.contains(["-c", "--center"]),
         gif_file: pargs.free_from_str()?,
     };
 
@@ -114,7 +122,7 @@ fn get_gif_decoder(gif_file: &str) -> Result<Decoder<File>, DecodingError> {
 }
 
 /// Processes a single frame of a GIF image and updates the framebuffer frame buffer accordingly.
-fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut [u8], fb_info: &FramebufferInfo) {
+fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut [u8], fb_info: &FramebufferInfo, offset: &Offset) {
     let buffer = &gif_frame.buffer;
     let lines = buffer.chunks(gif_frame.width as usize);
 
@@ -125,7 +133,7 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
         }
 
         for (x, pixel) in line.iter().enumerate() {
-            let x = x + gif_frame.left as usize;
+            let x = x + offset.x+ gif_frame.left as usize;
             if x >= fb_info.width {
                 break;
             }
@@ -136,7 +144,7 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
                 }
             }
 
-            let i = (y * fb_info.width + x) * fb_info.channels;
+            let i = ((y + offset.y) * fb_info.width + x ) * fb_info.channels;
             let j = *pixel as usize * 3;
 
             fb_frame[i] = gif_palette[j + 2];
@@ -166,12 +174,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let global_palette = decoder.global_palette().unwrap_or_default();
     let global_palette = global_palette.to_vec();
 
+    // Calulcate Offset
+    let offset = if args.center {
+        Offset { x: (fb_info.width - decoder.width() as usize) / 2, y: (fb_info.height - decoder.height() as usize) / 2}
+    } else {
+        Offset { x: 0, y: 0}
+    };
+
     loop {
         // Process each frame of the GIF file
         while let Some(gif_frame) = decoder.read_next_frame()? {
             let gif_palette = gif_frame.palette.as_ref().unwrap_or(&global_palette);
 
-            process_gif_frame(gif_frame, gif_palette, &mut fb_frame, &fb_info);
+            process_gif_frame(gif_frame, gif_palette, &mut fb_frame, &fb_info, &offset);
             fb.write_frame(&fb_frame);
 
             let delay = args.interval * gif_frame.delay as u64;
