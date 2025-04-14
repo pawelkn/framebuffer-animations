@@ -41,6 +41,7 @@ struct FramebufferInfo {
     width: usize,
     height: usize,
     channels: usize,
+    alignment: usize,
 }
 
 struct Offset {
@@ -85,7 +86,8 @@ fn get_framebuffer_info(fb: &Framebuffer) -> FramebufferInfo {
     let width = fb.var_screen_info.xres as usize;
     let height = fb.var_screen_info.yres as usize;
     let channels = fb.var_screen_info.bits_per_pixel as usize / 8;
-    FramebufferInfo { width, height, channels }
+    let alignment = fb.fix_screen_info.line_length as usize - fb.var_screen_info.xres as usize * channels;
+    FramebufferInfo { width, height, channels, alignment }
 }
 
 /// Sets the keyboard display mode to either graphics or text mode.
@@ -144,7 +146,7 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
                 }
             }
 
-            let i = ((y + offset.y) * fb_info.width + x ) * fb_info.channels;
+            let i = ((y + offset.y) * fb_info.width + x ) * fb_info.channels + (y + offset.y) * fb_info.alignment;
             let j = *pixel as usize * 3;
 
             fb_frame[i] = gif_palette[j + 2];
@@ -166,7 +168,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let fb_info = get_framebuffer_info(&fb);
 
     // Create framebuffer frame buffer
-    let mut fb_frame = vec![0; (fb_info.channels * fb_info.width * fb_info.height) as usize];
+    let mut fb_frame = vec![0; ( fb.frame.len()) as usize];
     let mut frame_prepare_time = Instant::now();
 
     // Decode GIF file
