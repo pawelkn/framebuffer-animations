@@ -38,15 +38,15 @@ struct Args {
 
 /// Information about the framebuffer
 struct FramebufferInfo {
-    width: usize,
-    height: usize,
-    channels: usize,
-    alignment: usize,
+    width: isize,
+    height: isize,
+    channels: isize,
+    alignment: isize,
 }
 
 struct Offset {
-    x: usize,
-    y: usize,
+    x: isize,
+    y: isize,
 }
 
 /// Parses command line arguments
@@ -83,10 +83,10 @@ fn parse_interval(s: &str) -> Result<u64, &'static str> {
 
 /// Retrieves information about the framebuffer.
 fn get_framebuffer_info(fb: &Framebuffer) -> FramebufferInfo {
-    let width = fb.var_screen_info.xres as usize;
-    let height = fb.var_screen_info.yres as usize;
-    let channels = fb.var_screen_info.bits_per_pixel as usize / 8;
-    let alignment = fb.fix_screen_info.line_length as usize - fb.var_screen_info.xres as usize * channels;
+    let width = fb.var_screen_info.xres as isize;
+    let height = fb.var_screen_info.yres as isize;
+    let channels = fb.var_screen_info.bits_per_pixel as isize / 8;
+    let alignment = fb.fix_screen_info.line_length as isize - fb.var_screen_info.xres as isize * channels;
     FramebufferInfo { width, height, channels, alignment }
 }
 
@@ -129,13 +129,20 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
     let lines = buffer.chunks(gif_frame.width as usize);
 
     for (y, line) in lines.enumerate() {
-        let y = y + gif_frame.top as usize;
+        let y = y as isize + offset.y + gif_frame.top as isize;
+        if y < 0 {
+            continue;
+        }
+
         if y >= fb_info.height {
             break;
         }
 
         for (x, pixel) in line.iter().enumerate() {
-            let x = x + offset.x+ gif_frame.left as usize;
+            let x = x as isize + offset.x + gif_frame.left as isize;
+            if x < 0 {
+                continue;
+            }
             if x >= fb_info.width {
                 break;
             }
@@ -146,7 +153,7 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
                 }
             }
 
-            let i = ((y + offset.y) * fb_info.width + x ) * fb_info.channels + (y + offset.y) * fb_info.alignment;
+            let i = ((y * fb_info.width + x) * fb_info.channels + y * fb_info.alignment) as usize;
             let j = *pixel as usize * 3;
 
             fb_frame[i] = gif_palette[j + 2];
@@ -168,7 +175,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let fb_info = get_framebuffer_info(&fb);
 
     // Create framebuffer frame buffer
-    let mut fb_frame = vec![0; ( fb.frame.len()) as usize];
+    let mut fb_frame = vec![0; (fb.frame.len()) as usize];
     let mut frame_prepare_time = Instant::now();
 
     // Decode GIF file
@@ -178,9 +185,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Calulcate Offset
     let offset = if args.center {
-        Offset { x: (fb_info.width - decoder.width() as usize) / 2, y: (fb_info.height - decoder.height() as usize) / 2}
+        Offset {
+            x: (fb_info.width - decoder.width() as isize) / 2,
+            y: (fb_info.height - decoder.height() as isize) / 2,
+        }
     } else {
-        Offset { x: 0, y: 0}
+        Offset { x: 0, y: 0 }
     };
 
     loop {
