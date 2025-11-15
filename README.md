@@ -19,38 +19,36 @@ Framebuffer Animations is an open-source project designed to play GIF animations
 
 Cross-compiling Framebuffer Animations for your target embedded system is straightforward. Here's an example of cross-compilation for The NXP i.MX28 processor with support for the ARMv5TE instruction set.
 
-1. Install the cross-compiler toolchain for your target.
-
-2. Setup a target for Rust:
+1. Setup a target for Rust:
 
 ```bash
-rustup target add armv5te-unknown-linux-gnueabi
+rustup target add armv5te-unknown-linux-musleabi
 ```
 
-3. Clone the repository:
+2. Clone the repository:
 
 ```bash
 git clone https://github.com/pawelkn/framebuffer-animations.git
 ```
 
-4. Create a _.cargo_ subfolder in the project directory.
+3. Create a _.cargo_ subfolder in the project directory.
 
 ```bash
 cd framebuffer-animations
 mkdir .cargo
 ```
 
-5. Edit _.cargo/config_ file. Set the valid _gcc_ cross-compiler for your target. Set additional compiler flags, if needed. Example file content:
+4. Edit _.cargo/config.toml_ file. Example file content:
 
-```ini
-[target.armv5te-unknown-linux-gnueabi]
-linker = "/home/pawel/buildroot/output/host/usr/bin/arm-buildroot-linux-gnueabi-gcc"
+```toml
+[target.armv5te-unknown-linux-musleabi]
+linker = "rust-lld"
 ```
 
-6. Build the project:
+5. Build the project:
 
 ```bash
-cargo build --target=armv5te-unknown-linux-gnueabi --release
+cargo build --target=armv5te-unknown-linux-musleabi --release
 ```
 
 ## Deployment
@@ -60,7 +58,7 @@ Deployment of Framebuffer Animations depends on your specific embedded system an
 1. Transfer the built binary to your embedded device:
 
 ```bash
-scp target/armv5te-unknown-linux-gnueabi/release/fba root@192.168.10.100:/usr/bin/
+scp target/armv5te-unknown-linux-musleabi/release/fba root@192.168.10.100:/usr/bin/
 ```
 
 2. Transfer example images:
