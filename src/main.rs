@@ -18,7 +18,7 @@ FLAGS:
 
 OPTIONS:
   -d, --device DEVICE       Framebuffer device file [default: /dev/fb0]
-  -i, --interval NUMBER     Interval step for displaying GIF frames (milliseconds) [default: 5]
+  -i, --interval NUMBER     Interval step for displaying GIF frames (milliseconds) [default: 10]
   -o, --once                Play the file just one time
   -c, --center              Center the GIF
 
@@ -61,7 +61,7 @@ fn parse_args() -> Result<Args, pico_args::Error> {
 
     let args = Args {
         device: pargs.opt_value_from_str(["-d", "--device"])?.unwrap_or("/dev/fb0".to_string()),
-        interval: pargs.opt_value_from_fn(["-i", "--interval"], parse_interval)?.unwrap_or(5),
+        interval: pargs.opt_value_from_fn(["-i", "--interval"], parse_interval)?.unwrap_or(10),
         once: pargs.contains(["-o", "--once"]),
         center: pargs.contains(["-c", "--center"]),
         gif_file: pargs.free_from_str()?,
