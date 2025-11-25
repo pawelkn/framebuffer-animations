@@ -83,7 +83,7 @@ crw-rw----    1 root     root       29,   0 Jan  1  1970 /dev/fb0
 5. Run the example on your embedded device:
 
 ```bash
-fba --device /dev/fb0 --interval 5 --once --center /root/images/spaceship-640x480.gif
+fba --device /dev/fb0 --interval 10 --once --center /root/images/spaceship-640x480.gif
 ```
 
 Enjoy your GIF animations on your embedded display!
@@ -98,7 +98,7 @@ The Framebuffer Animations accepts the following command line arguments:
 
 - `--device`, `-d`: Specifies the framebuffer device file. Default is `/dev/fb0`.
 
-- `--interval`, `-i`: Sets the interval step for displaying GIF frames in milliseconds. Default is 5 milliseconds.
+- `--interval`, `-i`: Sets the interval step for displaying GIF frames in milliseconds. Default is 10 milliseconds.
 
 - `--once`, `-o`: When provided, the GIF animation will play only one time. By default, it loops indefinitely.
 
