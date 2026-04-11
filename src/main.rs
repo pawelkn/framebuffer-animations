@@ -1,4 +1,4 @@
-use framebuffer::{Framebuffer, FramebufferError, KdMode};
+use framebuffer::{Bitfield, Framebuffer, FramebufferError, KdMode};
 use gif::{ColorOutput, Decoder, DecodingError};
 use pico_args::Arguments;
 use std::error::Error;
@@ -41,7 +41,11 @@ struct FramebufferInfo {
     width: isize,
     height: isize,
     channels: isize,
-    alignment: isize,
+    line_length: isize,
+    red: Bitfield,
+    green: Bitfield,
+    blue: Bitfield,
+    transp: Bitfield,
 }
 
 struct Offset {
@@ -82,12 +86,68 @@ fn parse_interval(s: &str) -> Result<u64, &'static str> {
 }
 
 /// Retrieves information about the framebuffer.
-fn get_framebuffer_info(fb: &Framebuffer) -> FramebufferInfo {
+fn get_framebuffer_info(fb: &Framebuffer) -> Result<FramebufferInfo, Box<dyn Error>> {
     let width = fb.var_screen_info.xres as isize;
     let height = fb.var_screen_info.yres as isize;
     let channels = fb.var_screen_info.bits_per_pixel as isize / 8;
-    let alignment = fb.fix_screen_info.line_length as isize - fb.var_screen_info.xres as isize * channels;
-    FramebufferInfo { width, height, channels, alignment }
+    let line_length = fb.fix_screen_info.line_length as isize;
+
+    if !matches!(channels, 2 | 3 | 4) {
+        return Err(format!("Unsupported framebuffer format: {} bits per pixel", fb.var_screen_info.bits_per_pixel).into());
+    }
+
+    Ok(FramebufferInfo {
+        width,
+        height,
+        channels,
+        line_length,
+        red: fb.var_screen_info.red.clone(),
+        green: fb.var_screen_info.green.clone(),
+        blue: fb.var_screen_info.blue.clone(),
+        transp: fb.var_screen_info.transp.clone(),
+    })
+}
+
+fn reverse_bits(value: u32, bits: u32) -> u32 {
+    let mut value = value;
+    let mut reversed = 0;
+    for _ in 0..bits {
+        reversed = (reversed << 1) | (value & 1);
+        value >>= 1;
+    }
+    reversed
+}
+
+fn scale_channel(value: u8, bitfield: &Bitfield) -> u32 {
+    if bitfield.length == 0 {
+        return 0;
+    }
+
+    let max = (1u32 << bitfield.length) - 1;
+    let scaled = ((value as u32 * max + 127) / 255) as u32;
+    let scaled = if bitfield.msb_right == 0 {
+        scaled
+    } else {
+        reverse_bits(scaled, bitfield.length)
+    };
+
+    scaled << bitfield.offset
+}
+
+fn write_pixel_to_fb(fb_frame: &mut [u8], i: usize, fb_info: &FramebufferInfo, red: u8, green: u8, blue: u8) {
+    let mut pixel = scale_channel(red, &fb_info.red)
+        | scale_channel(green, &fb_info.green)
+        | scale_channel(blue, &fb_info.blue);
+
+    if fb_info.transp.length > 0 {
+        let alpha = (1u32 << fb_info.transp.length) - 1;
+        pixel |= alpha << fb_info.transp.offset;
+    }
+
+    let bytes = pixel.to_le_bytes();
+    for byte_index in 0..(fb_info.channels as usize) {
+        fb_frame[i + byte_index] = bytes[byte_index];
+    }
 }
 
 /// Sets the keyboard display mode to either graphics or text mode.
@@ -153,12 +213,17 @@ fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut 
                 }
             }
 
-            let i = ((y * fb_info.width + x) * fb_info.channels + y * fb_info.alignment) as usize;
+            let i = (y * fb_info.line_length + x * fb_info.channels) as usize;
             let j = *pixel as usize * 3;
 
-            fb_frame[i] = gif_palette[j + 2];
-            fb_frame[i + 1] = gif_palette[j + 1];
-            fb_frame[i + 2] = gif_palette[j];
+            write_pixel_to_fb(
+                fb_frame,
+                i,
+                &fb_info,
+                gif_palette[j],
+                gif_palette[j + 1],
+                gif_palette[j + 2],
+            );
         }
     }
 }
@@ -172,10 +237,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize framebuffer
     let mut fb = Framebuffer::new(&args.device)?;
-    let fb_info = get_framebuffer_info(&fb);
+    let fb_info = get_framebuffer_info(&fb)?;
 
     // Create framebuffer frame buffer
-    let mut fb_frame = vec![0; (fb.frame.len()) as usize];
+    let mut fb_frame = vec![0; fb.frame.len() as usize];
     let mut frame_prepare_time = Instant::now();
 
     // Decode GIF file
