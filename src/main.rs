@@ -1,14 +1,14 @@
+use ctrlc;
 use framebuffer::{Bitfield, Framebuffer, FramebufferError, KdMode};
 use gif::{ColorOutput, Decoder, DecodingError};
 use pico_args::Arguments;
 use std::error::Error;
-use std::process;
-use std::thread;
-use std::time::{Duration, Instant};
 use std::io::Cursor;
+use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use ctrlc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 const HELP: &str = "\
 Framebuffer GIF animation player
@@ -96,7 +96,11 @@ fn get_framebuffer_info(fb: &Framebuffer) -> Result<FramebufferInfo, Box<dyn Err
     let line_length = fb.fix_screen_info.line_length as isize;
 
     if !matches!(channels, 2 | 3 | 4) {
-        return Err(format!("Unsupported framebuffer format: {} bits per pixel", fb.var_screen_info.bits_per_pixel).into());
+        return Err(format!(
+            "Unsupported framebuffer format: {} bits per pixel",
+            fb.var_screen_info.bits_per_pixel
+        )
+        .into());
     }
 
     Ok(FramebufferInfo {
@@ -186,7 +190,13 @@ fn get_gif_decoder_from_cursor(cursor: Cursor<&[u8]>) -> Result<Decoder<Cursor<&
 }
 
 /// Processes a single frame of a GIF image and updates the framebuffer frame buffer accordingly.
-fn process_gif_frame(gif_frame: &gif::Frame, gif_palette: &[u8], fb_frame: &mut [u8], fb_info: &FramebufferInfo, offset: &Offset) {
+fn process_gif_frame(
+    gif_frame: &gif::Frame,
+    gif_palette: &[u8],
+    fb_frame: &mut [u8],
+    fb_info: &FramebufferInfo,
+    offset: &Offset,
+) {
     let buffer = &gif_frame.buffer;
     let lines = buffer.chunks(gif_frame.width as usize);
 
@@ -267,7 +277,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
         eprintln!("Received SIGINT, shutting down...");
-    }).expect("Error setting Ctrl-C handler");
+    })
+    .expect("Error setting Ctrl-C handler");
 
     'main_loop: loop {
         decoder = get_gif_decoder_from_cursor(Cursor::new(&gif_data))?; // resets the read head of gif

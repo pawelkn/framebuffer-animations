@@ -1,6 +1,6 @@
 [package]
 name = "fba"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Paweł Knioła <pawel.kn@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -16,5 +16,5 @@ codegen-units = 1  # Reduce parallel code generation units
 [dependencies]
 pico-args = "^0.5"
 framebuffer = "^0.3"
-gif = "^0.12"
-ctrlc = "3.5.2"
+gif = "^0.14"
+ctrlc = "^3.5"
