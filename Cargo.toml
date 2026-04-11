@@ -17,3 +17,4 @@ codegen-units = 1  # Reduce parallel code generation units
 pico-args = "^0.5"
 framebuffer = "^0.3"
 gif = "^0.12"
+ctrlc = "3.5.2"
