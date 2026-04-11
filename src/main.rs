@@ -6,6 +6,9 @@ use std::fs::File;
 use std::process;
 use std::thread;
 use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use ctrlc;
 
 const HELP: &str = "\
 Framebuffer GIF animation player
@@ -193,6 +196,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         Offset { x: 0, y: 0 }
     };
 
+    // Handle Ctrl-C signal for graceful shutdown
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+        println!("Received SIGINT, shutting down...");
+    }).expect("Error setting Ctrl-C handler");
+
+
     loop {
         // Process each frame of the GIF file
         while let Some(gif_frame) = decoder.read_next_frame()? {
@@ -206,8 +218,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             frame_prepare_time = Instant::now();
         }
 
-        // Stop after one the GIF file loop, if specified
-        if args.once {
+        // Stop after one the GIF file loop, if specified or Ctrl-C signal is received
+        if args.once || !running.load(Ordering::SeqCst) {
             break;
         }
 
