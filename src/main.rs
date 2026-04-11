@@ -2,10 +2,10 @@ use framebuffer::{Framebuffer, FramebufferError, KdMode};
 use gif::{ColorOutput, Decoder, DecodingError};
 use pico_args::Arguments;
 use std::error::Error;
-use std::fs::File;
 use std::process;
 use std::thread;
 use std::time::{Duration, Instant};
+use std::io::Cursor;
 
 const HELP: &str = "\
 Framebuffer GIF animation player
@@ -116,11 +116,10 @@ fn postpone_next_frame(delay: u64, elapsed: &Duration) {
 }
 
 /// Creates a `gif::Decoder` instance to decode a GIF file.
-fn get_gif_decoder(gif_file: &str) -> Result<Decoder<File>, DecodingError> {
-    let file = File::open(gif_file)?;
+fn get_gif_decoder_from_cursor(cursor: Cursor<&[u8]>) -> Result<Decoder<Cursor<&[u8]>>, DecodingError> {
     let mut decode_options = gif::DecodeOptions::new();
     decode_options.set_color_output(ColorOutput::Indexed);
-    decode_options.read_info(file)
+    decode_options.read_info(cursor)
 }
 
 /// Processes a single frame of a GIF image and updates the framebuffer frame buffer accordingly.
@@ -179,7 +178,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut frame_prepare_time = Instant::now();
 
     // Decode GIF file
-    let mut decoder = get_gif_decoder(&args.gif_file)?;
+    let gif_data = std::fs::read(&args.gif_file)?;
+    let mut decoder = get_gif_decoder_from_cursor(Cursor::new(&gif_data))?;
     let global_palette = decoder.global_palette().unwrap_or_default();
     let global_palette = global_palette.to_vec();
 
@@ -194,6 +194,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     loop {
+        decoder = get_gif_decoder_from_cursor(Cursor::new(&gif_data))?; // resets the read head of gif
+
         // Process each frame of the GIF file
         while let Some(gif_frame) = decoder.read_next_frame()? {
             let gif_palette = gif_frame.palette.as_ref().unwrap_or(&global_palette);
@@ -211,8 +213,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
-        // Reinitialize the decoder to the beginning of the GIF file
-        decoder = get_gif_decoder(&args.gif_file)?;
+        // gif_cursor is dropped here; next iteration creates a new one from the same Vec
     }
 
     // Set keyboard display mode back to text
