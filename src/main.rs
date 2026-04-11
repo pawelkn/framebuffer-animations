@@ -266,11 +266,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let r = running.clone();
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
-        println!("Received SIGINT, shutting down...");
+        eprintln!("Received SIGINT, shutting down...");
     }).expect("Error setting Ctrl-C handler");
 
-
-    loop {
+    'main_loop: loop {
         decoder = get_gif_decoder_from_cursor(Cursor::new(&gif_data))?; // resets the read head of gif
 
         // Process each frame of the GIF file
@@ -283,14 +282,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             let delay = args.interval * gif_frame.delay as u64;
             postpone_next_frame(delay, &frame_prepare_time.elapsed());
             frame_prepare_time = Instant::now();
+
+            // Break when Ctrl-C signal is received
+            if !running.load(Ordering::SeqCst) {
+                break 'main_loop;
+            }
         }
 
-        // Stop after one the GIF file loop, if specified or Ctrl-C signal is received
-        if args.once || !running.load(Ordering::SeqCst) {
-            break;
+        // Stop after one the GIF file loop, if specified
+        if args.once {
+            break 'main_loop;
         }
-
-        // gif_cursor is dropped here; next iteration creates a new one from the same Vec
     }
 
     // Set keyboard display mode back to text
